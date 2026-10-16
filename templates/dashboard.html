@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Hoc Tap Hub - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-3xl mx-auto bg-white p-6 rounded shadow">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Xin chào, {{ username }}!</h1>
+            <a href="/logout" class="bg-red-500 text-white px-4 py-2 rounded text-sm">Đăng xuất</a>
+        </div>
+        <hr class="mb-6">
+        <h2 class="text-xl font-semibold mb-3">Tải file tài liệu học tập để làm trắc nghiệm</h2>
+        <input type="file" id="fileInput" class="mb-4 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        <button onclick="uploadFile()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Tạo câu hỏi trắc nghiệm từ File</button>
+        
+        <div id="quizContainer" class="mt-6"></div>
+    </div>
+
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) {
+                alert('Vui lòng chọn một file!');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.quiz) {
+                let html = '<h3 class="text-lg font-bold mb-4">Bài tập trắc nghiệm:</h3>';
+                data.quiz.forEach((q, idx) => {
+                    html += `<div class="mb-4 p-4 border rounded"><p class="font-medium">${idx + 1}. ${q.question}</p>`;
+                    q.options.forEach((opt, oIdx) => {
+                        html += `<label class="block mt-2"><input type="radio" name="q_${q.id}" value="${oIdx}"> ${opt}</label>`;
+                    });
+                    html += `</div>`;
+                });
+                document.getElementById('quizContainer').innerHTML = html;
+            }
+        }
+    </script>
+</body>
+</html>
