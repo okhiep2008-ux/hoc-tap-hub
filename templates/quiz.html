@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Làm Bài Trắc Nghiệm - Học Tập Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen py-8 px-4">
+    <div class="max-w-2xl mx-auto">
+        <!-- Header & Đồng Hồ -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-6 flex justify-between items-center sticky top-4 z-10">
+            <div>
+                <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Học Tập Hub</span>
+                <h1 class="text-base font-bold text-slate-800">Bài Kiểm Tra Trắc Nghiệm</h1>
+            </div>
+            <div id="timer" class="bg-red-50 text-red-600 px-3.5 py-1.5 rounded-xl font-bold text-sm border border-red-100 flex items-center space-x-1">
+                <span>⏱️</span><span id="timeDisplay">00:00</span>
+            </div>
+        </div>
+
+        <!-- Thanh Tiến Trình (Progress Bar) -->
+        <div id="quizContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div class="w-full bg-slate-100 h-2 rounded-full mb-6 overflow-hidden">
+                <div id="progressBar" class="bg-indigo-600 h-2 transition-all duration-300" style="width: 20%"></div>
+            </div>
+
+            <!-- Các Thẻ Câu Hỏi -->
+            {% for q in quiz %}
+            <div class="question-step hidden" data-index="{{ loop.index0 }}">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Câu {{ loop.index }} / {{ quiz|length }}</span>
+                </div>
+                <h2 class="text-lg font-bold text-slate-800 mb-6">{{ q.question }}</h2>
+                <div class="space-y-3 mb-8">
+                    {% for opt in q.options %}
+                    <label class="flex items-center p-4 rounded-xl border border-slate-200 hover:bg-indigo-50/50 hover:border-indigo-200 cursor-pointer transition option-label">
+                        <input type="radio" name="question_{{ loop.index0 }}" value="{{ loop.index0 }}" class="text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                        <span class="ml-3 text-sm font-medium text-slate-700">{{ opt }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Điều hướng Trước / Sau / Nộp Bài -->
+            <div class="flex justify-between items-center pt-4 border-t border-slate-100">
+                <button id="prevBtn" onclick="changeQuestion(-1)" class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition hidden">
+                    Lùi lại
+                </button>
+                <div class="ml-auto flex space-x-3">
+                    <button id="nextBtn" onclick="changeQuestion(1)" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition shadow-md shadow-indigo-100">
+                        Câu Tiếp ➔
+                    </button>
+                    <button id="submitBtn" onclick="submitQuiz()" class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm rounded-xl transition shadow-md shadow-green-100 hidden">
+                        Nộp Bài
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Màn Hình Kết Quả -->
+        <div id="resultContainer" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-slate-800">🎉 Kết Quả Bài Làm</h2>
+                <div id="scoreBadge" class="text-4xl font-black text-indigo-600 my-3"></div>
+                <p id="scoreComment" class="text-sm font-medium text-slate-600"></p>
+            </div>
+            <div id="detailReview" class="space-y-4 mb-6"></div>
+            <a href="/" class="block text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition">
+                Quay Về Trang Chủ
+            </a>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const totalSteps = {{ quiz|length }};
+        const steps = document.querySelectorAll('.question-step');
+        
+        function showStep(index) {
+            steps.forEach((step, i) => {
+                step.classList.toggle('hidden', i !== index);
+            });
+            
+            document.getElementById('progressBar').style.width = `${((index + 1) / totalSteps) * 100}%`;
+            document.getElementById('prevBtn').classList.toggle('hidden', index === 0);
+            document.getElementById('nextBtn').classList.toggle('hidden', index === totalSteps - 1);
+            document.getElementById('submitBtn').classList.toggle('hidden', index !== totalSteps - 1);
+        }
+
+        function changeQuestion(dir) {
+            currentStep += dir;
+            if (currentStep < 0) currentStep = 0;
+            if (currentStep >= totalSteps) currentStep = totalSteps - 1;
+            showStep(currentStep);
+        }
+
+        showStep(0);
+
+        // Đếm ngược thời gian
+        let totalSeconds = {{ time_limit }} * 60;
+        const timerElement = document.getElementById('timeDisplay');
+        const timerInterval = setInterval(() => {
+            let minutes = Math.floor(totalSeconds / 60);
+            let seconds = totalSeconds % 60;
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            if (totalSeconds <= 0) {
+                clearInterval(timerInterval);
+                alert('Hết giờ làm bài!');
+                submitQuiz();
+            }
+            totalSeconds--;
+        }, 1000);
+
+        async function submitQuiz() {
+            clearInterval(timerInterval);
+            const answers = {};
+            for (let i = 0; i < totalSteps; i++) {
+                const selected = document.querySelector(`input[name="question_${i}"]:checked`);
+                if (selected) answers[i] = selected.value;
+            }
+
+            try {
+                const response = await fetch('/submit-quiz', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ answers })
+                });
+                const result = await response.json();
+
+                document.getElementById('quizContainer').classList.add('hidden');
+                document.getElementById('resultContainer').classList.remove('hidden');
+
+                document.getElementById('scoreBadge').textContent = `${result.score} / ${result.total} điểm`;
+                document.getElementById('scoreComment').textContent = result.score >= result.total * 0.8 ? "Xuất sắc! Bạn nắm rất vững kiến thức." : "Cần cố gắng ôn tập thêm nhé!";
+
+                let reviewHtml = '';
+                result.details.forEach((item, idx) => {
+                    reviewHtml += `
+                        <div class="p-4 rounded-xl border ${item.is_correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}">
+                            <p class="font-bold text-slate-800 text-sm mb-1">Câu ${idx + 1}: ${item.question}</p>
+                            <p class="text-xs font-semibold ${item.is_correct ? 'text-green-700' : 'text-red-700'}">
+                                ${item.is_correct ? '✔️ Chính xác' : `❌ Sai (Đáp án đúng: ${item.options[item.correct_ans]})`}
+                            </p>
+                        </div>
+                    `;
+                });
+                document.getElementById('detailReview').innerHTML = reviewHtml;
+            } catch (err) {
+                alert('Có lỗi khi gửi bài!');
+            }
+        }
+    </script>
+</body>
+</html>

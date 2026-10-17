@@ -2,47 +2,111 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Hoc Tap Hub - Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Học Tập Hub - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 p-8">
-    <div class="max-w-3xl mx-auto bg-white p-6 rounded shadow">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold">Xin chào, {{ username }}!</h1>
-            <a href="/logout" class="bg-red-500 text-white px-4 py-2 rounded text-sm">Đăng xuất</a>
+<body class="bg-slate-50 min-h-screen">
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 py-4 px-6 mb-8">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-black text-indigo-600 tracking-tight">📚 Học Tập Hub</h1>
+            <div class="flex items-center space-x-4">
+                <span class="text-sm font-semibold text-slate-700">👤 {{ username }}</span>
+                <a href="/logout" class="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 py-2 px-3 rounded-lg transition">Đăng xuất</a>
+            </div>
         </div>
-        <hr class="mb-6">
-        <h2 class="text-xl font-semibold mb-3">Tải file tài liệu học tập để làm trắc nghiệm</h2>
-        <input type="file" id="fileInput" class="mb-4 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-        <button onclick="uploadFile()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Tạo câu hỏi trắc nghiệm từ File</button>
-        
-        <div id="quizContainer" class="mt-6"></div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Form Tạo Đề -->
+        <div class="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-lg font-bold text-slate-800 mb-2">🚀 Tạo Bài Kiểm Tra Mới</h2>
+            <p class="text-sm text-slate-500 mb-6">Tải tài liệu PDF bài giảng để AI tự động biên soạn câu hỏi.</p>
+
+            <form id="uploadForm" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Chọn File PDF Bài Giảng</label>
+                    <input type="file" id="pdfFile" accept=".pdf" required class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-xl p-2 cursor-pointer">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Thời Gian Làm Bài</label>
+                    <select id="timeLimit" class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="5">5 Phút</option>
+                        <option value="10" selected>10 Phút</option>
+                        <option value="15">15 Phút</option>
+                        <option value="30">30 Phút</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition shadow-md shadow-indigo-100">
+                    Bắt Đầu Bắt Đầu Tạo Đề
+                </button>
+            </form>
+
+            <div id="loading" class="hidden text-center mt-6">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div>
+                <p class="text-sm text-indigo-600 font-semibold mt-2">AI đang đọc tài liệu và khởi tạo câu hỏi...</p>
+            </div>
+        </div>
+
+        <!-- Cột Lịch Sử Làm Bài -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-fit">
+            <h2 class="text-lg font-bold text-slate-800 mb-4">📊 Lịch Sử Kiểm Tra</h2>
+            {% if history %}
+            <div class="space-y-3">
+                {% for item in history %}
+                <div class="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div>
+                        <span class="text-xs text-slate-400 block">{{ item[2] }}</span>
+                        <span class="text-sm font-semibold text-slate-700">Bài thi trắc nghiệm</span>
+                    </div>
+                    <span class="text-sm font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                        {{ item[0] }}/{{ item[1] }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-xs text-slate-400 text-center py-6">Chưa có lịch sử làm bài.</p>
+            {% endif %}
+        </div>
     </div>
 
     <script>
-        async function uploadFile() {
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput.files.length === 0) {
-                alert('Vui lòng chọn một file!');
-                return;
-            }
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('pdfFile');
+            const timeLimit = document.getElementById('timeLimit').value;
+            const loading = document.getElementById('loading');
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (fileInput.files.length === 0) return;
+
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
+            formData.append('time_limit', timeLimit);
 
-            const res = await fetch('/upload', { method: 'POST', body: formData });
-            const data = await res.json();
-            if (data.quiz) {
-                let html = '<h3 class="text-lg font-bold mb-4">Bài tập trắc nghiệm:</h3>';
-                data.quiz.forEach((q, idx) => {
-                    html += `<div class="mb-4 p-4 border rounded"><p class="font-medium">${idx + 1}. ${q.question}</p>`;
-                    q.options.forEach((opt, oIdx) => {
-                        html += `<label class="block mt-2"><input type="radio" name="q_${q.id}" value="${oIdx}"> ${opt}</label>`;
-                    });
-                    html += `</div>`;
-                });
-                document.getElementById('quizContainer').innerHTML = html;
+            submitBtn.classList.add('hidden');
+            loading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/upload', { method: 'POST', body: formData });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    window.location.href = '/quiz';
+                } else {
+                    alert(result.error || 'Có lỗi xảy ra!');
+                    submitBtn.classList.remove('hidden');
+                    loading.classList.add('hidden');
+                }
+            } catch (err) {
+                alert('Lỗi kết nối server!');
+                submitBtn.classList.remove('hidden');
+                loading.classList.add('hidden');
             }
-        }
+        });
     </script>
 </body>
 </html>
