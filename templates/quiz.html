@@ -8,7 +8,7 @@
 </head>
 <body class="bg-slate-50 min-h-screen py-8 px-4">
     <div class="max-w-2xl mx-auto">
-        <!-- Header & Đồng Hồ -->
+        <!-- Header -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-6 flex justify-between items-center sticky top-4 z-10">
             <div>
                 <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Học Tập Hub</span>
@@ -19,23 +19,24 @@
             </div>
         </div>
 
-        <!-- Thanh Tiến Trình (Progress Bar) -->
+        <!-- Làm Bài -->
         <div id="quizContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div class="w-full bg-slate-100 h-2 rounded-full mb-6 overflow-hidden">
                 <div id="progressBar" class="bg-indigo-600 h-2 transition-all duration-300" style="width: 20%"></div>
             </div>
 
-            <!-- Các Thẻ Câu Hỏi -->
             {% for q in quiz %}
             <div class="question-step hidden" data-index="{{ loop.index0 }}">
                 <div class="flex justify-between items-center mb-4">
                     <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Câu {{ loop.index }} / {{ quiz|length }}</span>
                 </div>
                 <h2 class="text-lg font-bold text-slate-800 mb-6">{{ q.question }}</h2>
+                
+                <!-- Radio chọn duy nhất 1 đáp án -->
                 <div class="space-y-3 mb-8">
                     {% for opt in q.options %}
                     <label class="flex items-center p-4 rounded-xl border border-slate-200 hover:bg-indigo-50/50 hover:border-indigo-200 cursor-pointer transition option-label">
-                        <input type="radio" name="question_{{ loop.index0 }}" value="{{ loop.index0 }}" class="text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                        <input type="radio" name="question_{{ loop.parent.loop.index0 }}" value="{{ loop.index0 }}" class="text-indigo-600 focus:ring-indigo-500 h-4 w-4">
                         <span class="ml-3 text-sm font-medium text-slate-700">{{ opt }}</span>
                     </label>
                     {% endfor %}
@@ -43,7 +44,6 @@
             </div>
             {% endfor %}
 
-            <!-- Điều hướng Trước / Sau / Nộp Bài -->
             <div class="flex justify-between items-center pt-4 border-t border-slate-100">
                 <button id="prevBtn" onclick="changeQuestion(-1)" class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition hidden">
                     Lùi lại
@@ -59,14 +59,14 @@
             </div>
         </div>
 
-        <!-- Màn Hình Kết Quả -->
+        <!-- Kết Quả + Lời Giải Chi Tiết -->
         <div id="resultContainer" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
             <div class="text-center mb-6">
-                <h2 class="text-2xl font-bold text-slate-800">🎉 Kết Quả Bài Làm</h2>
+                <h2 class="text-2xl font-bold text-slate-800">🎉 Kết Quả & Lời Giải Chi Tiết</h2>
                 <div id="scoreBadge" class="text-4xl font-black text-indigo-600 my-3"></div>
                 <p id="scoreComment" class="text-sm font-medium text-slate-600"></p>
             </div>
-            <div id="detailReview" class="space-y-4 mb-6"></div>
+            <div id="detailReview" class="space-y-6 mb-6"></div>
             <a href="/" class="block text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition">
                 Quay Về Trang Chủ
             </a>
@@ -82,7 +82,6 @@
             steps.forEach((step, i) => {
                 step.classList.toggle('hidden', i !== index);
             });
-            
             document.getElementById('progressBar').style.width = `${((index + 1) / totalSteps) * 100}%`;
             document.getElementById('prevBtn').classList.toggle('hidden', index === 0);
             document.getElementById('nextBtn').classList.toggle('hidden', index === totalSteps - 1);
@@ -98,7 +97,6 @@
 
         showStep(0);
 
-        // Đếm ngược thời gian
         let totalSeconds = {{ time_limit }} * 60;
         const timerElement = document.getElementById('timeDisplay');
         const timerInterval = setInterval(() => {
@@ -133,16 +131,28 @@
                 document.getElementById('resultContainer').classList.remove('hidden');
 
                 document.getElementById('scoreBadge').textContent = `${result.score} / ${result.total} điểm`;
-                document.getElementById('scoreComment').textContent = result.score >= result.total * 0.8 ? "Xuất sắc! Bạn nắm rất vững kiến thức." : "Cần cố gắng ôn tập thêm nhé!";
+                document.getElementById('scoreComment').textContent = result.score >= result.total * 0.8 ? "Xuất sắc! Bạn đã nắm rất vững kiến thức." : "Hãy xem kỹ lời giải chi tiết bên dưới để rút kinh nghiệm nhé!";
 
                 let reviewHtml = '';
                 result.details.forEach((item, idx) => {
+                    const userSelectedText = item.user_ans !== -1 ? item.options[item.user_ans] : "Chưa chọn đáp án";
+                    const correctText = item.options[item.correct_ans];
+
                     reviewHtml += `
-                        <div class="p-4 rounded-xl border ${item.is_correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}">
-                            <p class="font-bold text-slate-800 text-sm mb-1">Câu ${idx + 1}: ${item.question}</p>
-                            <p class="text-xs font-semibold ${item.is_correct ? 'text-green-700' : 'text-red-700'}">
-                                ${item.is_correct ? '✔️ Chính xác' : `❌ Sai (Đáp án đúng: ${item.options[item.correct_ans]})`}
-                            </p>
+                        <div class="p-5 rounded-2xl border ${item.is_correct ? 'bg-green-50/60 border-green-200' : 'bg-red-50/60 border-red-200'}">
+                            <p class="font-bold text-slate-800 text-base mb-2">Câu ${idx + 1}: ${item.question}</p>
+                            
+                            <div class="text-xs font-semibold mb-2 space-y-1">
+                                <p class="${item.is_correct ? 'text-green-700' : 'text-red-700'}">
+                                    Đã chọn: <b>${userSelectedText}</b> ${item.is_correct ? '✔️' : '❌'}
+                                </p>
+                                ${!item.is_correct ? `<p class="text-green-700">Đáp án đúng: <b>${correctText}</b></p>` : ''}
+                            </div>
+
+                            <div class="mt-3 p-3 bg-white/80 rounded-xl border border-slate-200/80 text-xs text-slate-700">
+                                <span class="font-bold text-indigo-600 block mb-1">💡 Lời Giải Chi Tiết / Key:</span>
+                                <p class="leading-relaxed">${item.explanation}</p>
+                            </div>
                         </div>
                     `;
                 });
