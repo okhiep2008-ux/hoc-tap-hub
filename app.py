@@ -107,17 +107,8 @@ def upload_file():
             {text}
             """
 
-            # Tự động quét và chọn model đang hoạt động
-            model_name = 'gemini-1.5-flash'
-            try:
-                for m in genai.list_models():
-                    if 'generateContent' in m.supported_generation_methods:
-                        model_name = m.name
-                        break
-            except Exception:
-                pass
-
-            model = genai.GenerativeModel(model_name)
+            # Sử dụng đúng tên model theo yêu cầu từ chính hệ thống Google API trên màn hình của anh
+            model = genai.GenerativeModel('gemini-3.8-flash')
             response = model.generate_content(prompt)
             res_text = response.text.strip()
 
