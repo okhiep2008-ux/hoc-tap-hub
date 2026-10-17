@@ -1,127 +1,96 @@
 import os
 import json
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from pypdf import PdfReader
+import google.generativeai as genai
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key_here"  # Đổi khóa bí mật khi chạy thực tế
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.secret_key = 'khoa_bi_mat_cua_ban' # Thay đổi tùy ý để bảo mật session
 
-# Dữ liệu giả lập lưu trong bộ nhớ (Bạn có thể thay thế bằng SQLAlchemy + SQLite/PostgreSQL)
-users_db = {}       # username: password_hash
-history_db = []     # Lưu lịch sử làm bài của user
-quizzes_db = {}     # quiz_id: nội dung câu hỏi trắc nghiệm
+# Lấy Gemini API Key từ biến môi trường trên Render
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 @app.route('/')
-def index():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    return render_template('dashboard.html', username=session['user'], history=[h for h in history_db if h['user'] == session['user']])
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = generate_password_hash(request.form['password'])
-        if username in users_db:
-            return "Tài khoản đã tồn tại!"
-        users_db[username] = password
-        return redirect(url_for('login'))
-    return render_template('register.html')
+def home():
+    if 'username' in session:
+        return render_template('dashboard.html', username=session['username'])
+    return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        if username in users_db and check_password_hash(users_db[username], password):
-            session['user'] = username
-            return redirect(url_for('index'))
-        return "Sai tên đăng nhập hoặc mật khẩu!"
+        username = request.form.get('username')
+        session['username'] = username
+        return redirect(url_for('home'))
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
-    session.pop('user', None)
+    session.pop('username', None)
     return redirect(url_for('login'))
 
+# API xử lý đọc file PDF và gọi Gemini tạo trắc nghiệm
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'user' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+    if 'file' not in request.files:
+        return jsonify({'error': 'Không tìm thấy file'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'Chưa chọn file'}), 400
     
-    file = request.files.get('file')
-    if file:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        # [AI Integration Step]: Ở đây bạn gọi Gemini API / OpenAI API đọc file PDF/Word 
-        # để tự động tạo ra danh sách câu hỏi trắc nghiệm & bài tập vận dụng kèm lời giải.
-        # Dưới đây là cấu trúc mẫu trả về cho Frontend:
-        sample_quiz = [
-            {
-                "id": 1,
-                "question": "Đâu là từ đồng nghĩa với 'benevolent'?",
-                "options": ["Hostile", "Kind", "Indifferent", "Cruel"],
-                "correct": 1,
-                "explanation": "'Benevolent' có nghĩa là nhân từ, tốt bụng, đồng nghĩa với 'Kind'."
-            },
-            {
-                "id": 2,
-                "question": "[Bài tập vận dụng] Tính giá trị biểu thức khi x = 2: f(x) = x^2 + 3x - 5",
-                "options": ["5", "3", "7", "10"],
-                "correct": 0,
-                "explanation": "Thay x = 2 vào: 2^2 + 3(2) - 5 = 4 + 6 - 5 = 5."
-            }
-        ]
-        
-        quiz_id = str(len(quizzes_db) + 1)
-        quizzes_db[quiz_id] = sample_quiz
-        return jsonify({'quiz_id': quiz_id, 'quiz': sample_quiz})
-    
-    return jsonify({'error': 'No file uploaded'}), 400
+    if file and file.filename.endswith('.pdf'):
+        try:
+            # 1. Đọc nội dung chữ từ file PDF
+            reader = PdfReader(file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() or ""
+            
+            # Cắt ngắn bớt nếu tài liệu quá dài (giới hạn token)
+            text = text[:12000]
 
-@app.route('/submit_quiz', methods=['POST'])
-def submit_quiz():
-    if 'user' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    data = request.json
-    quiz_id = data.get('quiz_id')
-    user_answers = data.get('answers') # Dict: {question_id: selected_option_index}
-    
-    quiz = quizzes_db.get(quiz_id, [])
-    score = 0
-    detailed_results = []
-    
-    for q in quiz:
-        q_id = str(q['id'])
-        user_choice = user_answers.get(q_id)
-        is_correct = (user_choice == q['correct'])
-        if is_correct:
-            score += 1
-        detailed_results.append({
-            'question': q['question'],
-            'options': q['options'],
-            'user_choice': user_choice,
-            'correct': q['correct'],
-            'is_correct': is_correct,
-            'explanation': q['explanation']
-        })
-        
-    # Lưu vào lịch sử làm bài
-    history_record = {
-        'user': session['user'],
-        'score': f"{score}/{len(quiz)}",
-        'details': detailed_results
-    }
-    history_db.append(history_record)
-    
-    return jsonify({'score': score, 'total': len(quiz), 'details': detailed_results})
+            # 2. Tạo câu lệnh (prompt) yêu cầu Gemini trả về JSON chuẩn
+            prompt = f"""
+            Dựa vào nội dung tài liệu học tập dưới đây, hãy tạo ra 5 câu hỏi trắc nghiệm chất lượng.
+            BẮT BUỘC phải trả về kết quả ở dạng một chuỗi JSON thuần túy (không kèm markdown như ```json), theo cấu trúc mẫu chính xác sau:
+            {{
+              "quiz": [
+                {{
+                  "id": 1,
+                  "question": "Nội dung câu hỏi?",
+                  "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+                  "answer": 0
+                }}
+              ]
+            }}
+            Trong đó trường "answer" là số thứ tự của đáp án đúng (từ 0 đến 3 ứng với 4 đáp án trong mảng options).
+
+            Nội dung tài liệu:
+            {text}
+            """
+
+            # 3. Gọi Gemini API (Sử dụng model gemini-1.5-flash)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
+            
+            # Làm sạch dữ liệu trả về để parse JSON
+            res_text = response.text.strip()
+            if res_text.startswith("```json"):
+                res_text = res_text[7:]
+            if res_text.startswith("```"):
+                res_text = res_text[3:]
+            if res_text.endswith("```"):
+                res_text = res_text[:-3]
+
+            quiz_data = json.loads(res_text.strip())
+            return jsonify(quiz_data)
+
+        except Exception as e:
+            return jsonify({'error': f'Lỗi xử lý AI:ходила {str(e)}'}), 500
+
+    return jsonify({'error': 'Chỉ chấp nhận định dạng file PDF!'}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=5000)
