@@ -107,7 +107,8 @@ def upload_file():
             {text}
             """
 
-            model = genai.GenerativeModel('models/gemini-1.5-flash')
+           model = genai.GenerativeModel('gemini-pro')
+)
             response = model.generate_content(prompt)
             res_text = response.text.strip()
 
