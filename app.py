@@ -7,7 +7,7 @@ from pypdf import PdfReader
 import google.generativeai as genai
 
 app = Flask(__name__)
-app.secret_key = 'hoc_tap_hub_secret_key_pro_v2'
+app.secret_key = 'hoc_tap_hub_stable_v3'
 
 DB_NAME = 'database.db'
 
@@ -76,7 +76,8 @@ def upload_file():
         try:
             reader = PdfReader(file)
             text = ""
-            for page in reader.pages[:10]: # Chỉ đọc tối đa 10 trang đầu để xử lý cực nhanh
+            # Chỉ đọc tối đa 5 trang đầu để đảm bảo tốc độ siêu nhanh, không bao giờ timeout
+            for page in reader.pages[:5]:
                 extracted = page.extract_text()
                 if extracted:
                     text += extracted + "\n"
@@ -84,14 +85,12 @@ def upload_file():
             if not text.strip():
                 return jsonify({'error': 'File PDF dạng ảnh (scanned) không đọc được chữ. Hãy dùng PDF văn bản!'}), 400
 
-            # Cắt ngắn văn bản xuống 3500 ký tự để AI phản hồi ngay lập tức (< 5 giây)
-            text = text[:3500]
+            # Cắt gọn nội dung để AI phản hồi tức thì
+            text = text[:2500]
 
             prompt = f"""
             Tạo {num_questions} câu hỏi trắc nghiệm ({difficulty}) dựa vào tài liệu dưới đây.
-            Yêu cầu:
-            - Kèm lời giải ngắn gọn (explanation).
-            - Trả về BẮT BUỘC duy nhất chuỗi JSON chuẩn:
+            Yêu cầu: Trả về BẮT BUỘC duy nhất định dạng JSON chuẩn, không kèm bất kỳ văn bản ngoài nào:
             {{
               "quiz": [
                 {{
@@ -107,16 +106,17 @@ def upload_file():
             {text}
             """
 
+            # Sử dụng đúng model chuẩn theo cấu hình API Key
             model = genai.GenerativeModel('gemini-3.8-flash')
             response = model.generate_content(prompt)
             res_text = response.text.strip()
 
-            json_match = re.search(r'\{.*\}', res_text, re.DOTALL)
-            if json_match:
-                clean_json = json_match.group(0)
-                quiz_data = json.loads(clean_json)
-            else:
-                quiz_data = json.loads(res_text)
+            # Lọc sạch các ký tự markdown bao quanh JSON nếu có
+            res_text = re.sub(r'^```json\s*', '', res_text)
+            res_text = re.sub(r'^```\s*', '', res_text)
+            res_text = re.sub(r'\s*```$', '', res_text)
+
+            quiz_data = json.loads(res_text.strip())
 
             session['quiz_data'] = quiz_data['quiz']
             session['time_limit'] = int(time_limit)
@@ -127,6 +127,7 @@ def upload_file():
             return jsonify({'error': f'Lỗi xử lý AI: {str(e)}'}), 500
 
     return jsonify({'error': 'Chỉ chấp nhận file PDF!'}), 400
+
 @app.route('/quiz')
 def quiz_page():
     if 'quiz_data' not in session:
@@ -138,7 +139,7 @@ def quiz_page():
             session.pop('quiz_data', None)
             return redirect(url_for('home'))
         return render_template('quiz.html', quiz=quiz, time_limit=time_limit)
-    except Exception as e:
+    except Exception:
         session.pop('quiz_data', None)
         return redirect(url_for('home'))
 
