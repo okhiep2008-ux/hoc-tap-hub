@@ -88,8 +88,8 @@ def upload_file():
             return jsonify(quiz_data)
 
         except Exception as e:
-            return jsonify({'error': f'Lỗi xử lý AI:ходила {str(e)}'}), 500
-
+            print("LOI XU LY AI CHI TIET:", str(e))  # In lỗi ra màn hình Logs của Render
+            return jsonify({'error': f'Lỗi xử lý AI: {str(e)}'}), 500
     return jsonify({'error': 'Chỉ chấp nhận định dạng file PDF!'}), 400
 
 if __name__ == '__main__':
