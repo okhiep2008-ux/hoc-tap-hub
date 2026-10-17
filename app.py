@@ -14,7 +14,6 @@ DB_NAME = 'database.db'
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    # Bảng history lưu thêm cột detail_json để xem lại bài cũ
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,7 +68,7 @@ def upload_file():
         return jsonify({'error': 'Không tìm thấy file'}), 400
     
     file = request.files['file']
-    num_questions = request.form.get('num_questions', 10)
+    num_questions = request.form.get('num_questions', 5)
     difficulty = request.form.get('difficulty', 'Vận dụng cao')
     time_limit = request.form.get('time_limit', 10)
 
@@ -85,32 +84,26 @@ def upload_file():
             if not text.strip():
                 return jsonify({'error': 'File PDF dạng ảnh (scanned) không đọc được chữ. Hãy dùng PDF văn bản!'}), 400
 
-            text = text[:15000]
+            text = text[:10000]
 
             prompt = f"""
-            Bạn là một chuyên gia ra đề thi cấp độ đại học/chuyên sâu.
-            Dựa vào nội dung tài liệu học tập dưới đây, hãy tạo ra {num_questions} câu hỏi trắc nghiệm với mức độ tư duy: "{difficulty}".
-
-            YÊU CẦU ĐẶC BIỆT:
-            1. Nếu tài liệu chứa CÔNG THỨC, LÍ THUYẾT BÀI TẬP hoặc ĐỊNH LÝ, hãy tạo các bài tập TÍNH TOÁN VẬN DỤNG, cho dữ kiện số cụ thể để người học tự áp dụng công thức tính ra kết quả.
-            2. Tránh các câu hỏi nhận biết ghi nhớ đơn thuần. Hãy tập trung vào phân tích, suy luận, áp dụng công thức, so sánh hoặc xử lý tình huống.
-            3. Với mỗi câu hỏi, BẮT BUỘC cung cấp LỜI GIẢI CHI TIẾT (explanation) giải thích rõ từng bước tính toán hoặc lý do tại sao đáp án đó đúng/sai.
-
-            BẮT BUỘC trả về duy nhất một chuỗi JSON thuần túy theo định dạng:
+            Tạo {num_questions} câu hỏi trắc nghiệm ({difficulty}) dựa vào tài liệu dưới đây.
+            Yêu cầu:
+            - Nếu có công thức/lý thuyết bài tập, hãy tạo bài tập tính toán vận dụng cho số liệu cụ thể.
+            - Kèm lời giải ngắn gọn (explanation).
+            - Trả về BẮT BUỘC duy nhất chuỗi JSON chuẩn:
             {{
               "quiz": [
                 {{
                   "id": 1,
-                  "question": "Nội dung câu hỏi hoặc bài tập tính toán?",
-                  "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+                  "question": "Nội dung câu hỏi/bài tập?",
+                  "options": ["A", "B", "C", "D"],
                   "answer": 0,
-                  "explanation": "Lời giải chi tiết: Áp dụng công thức X = Y * Z... Do đó tính ra đáp án A."
+                  "explanation": "Lời giải ngắn gọn..."
                 }}
               ]
             }}
-            Trong đó "answer" là số thứ tự đáp án đúng (từ 0 đến 3).
-
-            Nội dung tài liệu:
+            Tài liệu:
             {text}
             """
 
@@ -139,7 +132,7 @@ def upload_file():
 def quiz_page():
     if 'quiz_data' not in session:
         return redirect(url_for('home'))
-    return render_template('quiz.html', quiz=session['quiz_data'], time_limit=session.get('time_limit', 10), is_review=False)
+    return render_template('quiz.html', quiz=session['quiz_data'], time_limit=session.get('time_limit', 10))
 
 @app.route('/submit-quiz', methods=['POST'])
 def submit_quiz():
@@ -166,7 +159,6 @@ def submit_quiz():
             'explanation': q.get('explanation', 'Không có lời giải chi tiết.')
         })
 
-    # Lưu kết quả + chi tiết đáp án vào Database
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -183,7 +175,6 @@ def submit_quiz():
         'details': details
     })
 
-# Xem lại bài thi cũ
 @app.route('/review/<int:history_id>')
 def review_quiz(history_id):
     conn = sqlite3.connect(DB_NAME)

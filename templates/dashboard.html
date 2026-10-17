@@ -18,9 +18,8 @@
     </nav>
 
     <div class="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
-        <!-- Form Tạo Đề -->
         <div class="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <h2 class="text-lg font-bold text-slate-800 mb-2">🚀 Tạo Bài Kiểm Tra Tư Duy Cao</h2>
+            <h2 class="text-lg font-bold text-slate-800 mb-2">🚀 Tạo Bài Kiểm Tra Thông Minh</h2>
             <p class="text-sm text-slate-500 mb-6">Tải PDF bài giảng/công thức để AI tạo bài tập vận dụng & tính toán.</p>
 
             <form id="uploadForm" class="space-y-4">
@@ -33,9 +32,8 @@
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Số Lượng Câu Hỏi</label>
                         <select id="numQuestions" class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="5">5 Câu</option>
-                            <option value="10" selected>10 Câu</option>
-                            <option value="15">15 Câu</option>
+                            <option value="5" selected>5 Câu (Tối ưu tốc độ)</option>
+                            <option value="10">10 Câu</option>
                         </select>
                     </div>
                     <div>
@@ -43,7 +41,6 @@
                         <select id="difficulty" class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                             <option value="Vận dụng cao & Tính toán" selected>Vận dụng cao & Tính toán</option>
                             <option value="Hiểu & Phân tích">Hiểu & Phân tích</option>
-                            <option value="Cơ bản">Cơ bản nhận biết</option>
                         </select>
                     </div>
                 </div>
@@ -54,7 +51,6 @@
                         <option value="5">5 Phút</option>
                         <option value="10" selected>10 Phút</option>
                         <option value="15">15 Phút</option>
-                        <option value="30">30 Phút</option>
                     </select>
                 </div>
 
@@ -65,11 +61,10 @@
 
             <div id="loading" class="hidden text-center mt-6">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div>
-                <p class="text-sm text-indigo-600 font-semibold mt-2">AI đang phân tích công thức & khởi tạo bài tập...</p>
+                <p class="text-sm text-indigo-600 font-semibold mt-2">AI đang phân tích công thức & tạo bài tập...</p>
             </div>
         </div>
 
-        <!-- Lịch Sử & Xem Lại -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-fit">
             <h2 class="text-lg font-bold text-slate-800 mb-4">📊 Lịch Sử Kiểm Tra</h2>
             {% if history %}
@@ -119,12 +114,12 @@
                 if (response.ok && result.success) {
                     window.location.href = '/quiz';
                 } else {
-                    alert(result.error || 'Có lỗi xảy ra!');
+                    alert(result.error || 'Có lỗi xảy ra từ máy chủ!');
                     submitBtn.classList.remove('hidden');
                     loading.classList.add('hidden');
                 }
             } catch (err) {
-                alert('Lỗi kết nối server!');
+                alert('Yêu cầu quá thời gian (Timeout) hoặc mất kết nối! Hãy thử lại với tùy chọn 5 câu hỏi.');
                 submitBtn.classList.remove('hidden');
                 loading.classList.add('hidden');
             }
