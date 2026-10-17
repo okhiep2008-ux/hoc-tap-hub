@@ -84,7 +84,7 @@ def upload_file():
             if not text.strip():
                 return jsonify({'error': 'File PDF dạng ảnh (scanned) không đọc được chữ. Hãy dùng PDF văn bản!'}), 400
 
-            text = text[:10000]
+            text = text[:8000]
 
             prompt = f"""
             Tạo {num_questions} câu hỏi trắc nghiệm ({difficulty}) dựa vào tài liệu dưới đây.
@@ -97,9 +97,9 @@ def upload_file():
                 {{
                   "id": 1,
                   "question": "Nội dung câu hỏi/bài tập?",
-                  "options": ["A", "B", "C", "D"],
+                  "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
                   "answer": 0,
-                  "explanation": "Lời giải ngắn gọn..."
+                  "explanation": "Lời giải chi tiết..."
                 }}
               ]
             }}
@@ -107,7 +107,7 @@ def upload_file():
             {text}
             """
 
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(prompt)
             res_text = response.text.strip()
 
@@ -135,15 +135,14 @@ def quiz_page():
     try:
         quiz = session.get('quiz_data', [])
         time_limit = session.get('time_limit', 10)
-        # Kiểm tra nếu dữ liệu quiz không hợp lệ thì xóa session và về trang chủ
         if not isinstance(quiz, list) or len(quiz) == 0:
             session.pop('quiz_data', None)
             return redirect(url_for('home'))
         return render_template('quiz.html', quiz=quiz, time_limit=time_limit)
     except Exception as e:
-        print(f"Lỗi hiển thị quiz: {str(e)}")
         session.pop('quiz_data', None)
         return redirect(url_for('home'))
+
 @app.route('/submit-quiz', methods=['POST'])
 def submit_quiz():
     user_answers = request.json.get('answers', {})
