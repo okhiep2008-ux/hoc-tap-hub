@@ -76,7 +76,7 @@ def upload_file():
         try:
             reader = PdfReader(file)
             text = ""
-            for page in reader.pages:
+            for page in reader.pages[:10]: # Chỉ đọc tối đa 10 trang đầu để xử lý cực nhanh
                 extracted = page.extract_text()
                 if extracted:
                     text += extracted + "\n"
@@ -84,19 +84,19 @@ def upload_file():
             if not text.strip():
                 return jsonify({'error': 'File PDF dạng ảnh (scanned) không đọc được chữ. Hãy dùng PDF văn bản!'}), 400
 
-            text = text[:8000]
+            # Cắt ngắn văn bản xuống 3500 ký tự để AI phản hồi ngay lập tức (< 5 giây)
+            text = text[:3500]
 
             prompt = f"""
             Tạo {num_questions} câu hỏi trắc nghiệm ({difficulty}) dựa vào tài liệu dưới đây.
             Yêu cầu:
-            - Nếu có công thức/lý thuyết bài tập, hãy tạo bài tập tính toán vận dụng cho số liệu cụ thể.
             - Kèm lời giải ngắn gọn (explanation).
             - Trả về BẮT BUỘC duy nhất chuỗi JSON chuẩn:
             {{
               "quiz": [
                 {{
                   "id": 1,
-                  "question": "Nội dung câu hỏi/bài tập?",
+                  "question": "Nội dung câu hỏi?",
                   "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
                   "answer": 0,
                   "explanation": "Lời giải chi tiết..."
@@ -107,7 +107,6 @@ def upload_file():
             {text}
             """
 
-            # Sử dụng đúng tên model theo yêu cầu từ chính hệ thống Google API trên màn hình của anh
             model = genai.GenerativeModel('gemini-3.8-flash')
             response = model.generate_content(prompt)
             res_text = response.text.strip()
@@ -128,7 +127,6 @@ def upload_file():
             return jsonify({'error': f'Lỗi xử lý AI: {str(e)}'}), 500
 
     return jsonify({'error': 'Chỉ chấp nhận file PDF!'}), 400
-
 @app.route('/quiz')
 def quiz_page():
     if 'quiz_data' not in session:
