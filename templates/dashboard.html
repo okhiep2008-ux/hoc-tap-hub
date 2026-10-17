@@ -94,10 +94,12 @@
             try {
                 const response = await fetch('/upload', { method: 'POST', body: formData });
                 const result = await response.json();
+                
                 if (response.ok && result.success) {
                     window.location.href = '/quiz';
                 } else {
-                    alert(result.error || 'Có lỗi xảy ra!');
+                    // Hiển thị chính xác lỗi từ server trả về lên màn hình
+                    alert(result.error || 'Lỗi không xác định từ server!');
                     submitBtn.classList.remove('hidden');
                     loading.classList.add('hidden');
                 }
