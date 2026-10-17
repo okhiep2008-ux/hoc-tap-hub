@@ -132,8 +132,18 @@ def upload_file():
 def quiz_page():
     if 'quiz_data' not in session:
         return redirect(url_for('home'))
-    return render_template('quiz.html', quiz=session['quiz_data'], time_limit=session.get('time_limit', 10))
-
+    try:
+        quiz = session.get('quiz_data', [])
+        time_limit = session.get('time_limit', 10)
+        # Kiểm tra nếu dữ liệu quiz không hợp lệ thì xóa session và về trang chủ
+        if not isinstance(quiz, list) or len(quiz) == 0:
+            session.pop('quiz_data', None)
+            return redirect(url_for('home'))
+        return render_template('quiz.html', quiz=quiz, time_limit=time_limit)
+    except Exception as e:
+        print(f"Lỗi hiển thị quiz: {str(e)}")
+        session.pop('quiz_data', None)
+        return redirect(url_for('home'))
 @app.route('/submit-quiz', methods=['POST'])
 def submit_quiz():
     user_answers = request.json.get('answers', {})
