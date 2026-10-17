@@ -107,7 +107,11 @@ def upload_file():
             {text}
             """
 
-            model = genai.GenerativeModel(model_name='gemini-1.5-flash', client=genai.Client(api_key=GEMINI_API_KEY) if hasattr(genai, 'Client') else None) if hasattr(genai, 'Client') else genai.GenerativeModel('models/gemini-1.5-flash')
+           # Tự động lấy model flash chuẩn của Google API
+            try:
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+            except:
+                model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(prompt)
             res_text = response.text.strip()
 
