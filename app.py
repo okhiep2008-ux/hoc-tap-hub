@@ -5,9 +5,9 @@ from pypdf import PdfReader
 import google.generativeai as genai
 
 app = Flask(__name__)
-app.secret_key = 'khoa_bi_mat_cua_ban' # Thay đổi tùy ý để bảo mật session
+app.secret_key = 'khoa_bi_mat_cua_ban'
 
-# Lấy Gemini API Key từ biến môi trường trên Render
+# Kiểm tra và cấu hình Gemini API Key
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -31,9 +31,12 @@ def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
 
-# API xử lý đọc file PDF và gọi Gemini tạo trắc nghiệm
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    # Kiểm tra xem đã cấu hình khóa API trên Render chưa
+    if not GEMINI_API_KEY:
+        return jsonify({'error': 'Lỗi: Chưa cấu hình biến môi trường GEMINI_API_KEY trên Render!'}), 500
+
     if 'file' not in request.files:
         return jsonify({'error': 'Không tìm thấy file'}), 400
     file = request.files['file']
@@ -42,16 +45,13 @@ def upload_file():
     
     if file and file.filename.endswith('.pdf'):
         try:
-            # 1. Đọc nội dung chữ từ file PDF
             reader = PdfReader(file)
             text = ""
             for page in reader.pages:
                 text += page.extract_text() or ""
             
-            # Cắt ngắn bớt nếu tài liệu quá dài (giới hạn token)
             text = text[:12000]
 
-            # 2. Tạo câu lệnh (prompt) yêu cầu Gemini trả về JSON chuẩn
             prompt = f"""
             Dựa vào nội dung tài liệu học tập dưới đây, hãy tạo ra 5 câu hỏi trắc nghiệm chất lượng.
             BẮT BUỘC phải trả về kết quả ở dạng một chuỗi JSON thuần túy (không kèm markdown như ```json), theo cấu trúc mẫu chính xác sau:
@@ -71,11 +71,9 @@ def upload_file():
             {text}
             """
 
-            # 3. Gọi Gemini API (Sử dụng model gemini-1.5-flash)
             model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(prompt)
             
-            # Làm sạch dữ liệu trả về để parse JSON
             res_text = response.text.strip()
             if res_text.startswith("```json"):
                 res_text = res_text[7:]
@@ -88,7 +86,10 @@ def upload_file():
             return jsonify(quiz_data)
 
         except Exception as e:
-            print("🚨 CHI TIẾT LỖI XẢY RA:", str(e))  # In lỗi cụ thể ra màn hình Logs của Render
-            return jsonify({'error': f'Lỗi: {str(e)}'}), 500
+            print("🚨 CHI TIẾT LỖI XẢY RA:", str(e))
+            return jsonify({'error': f'Lỗi xử lý AI: {str(e)}'}), 500
+
+    return jsonify({'error': 'Chỉ chấp nhận định dạng file PDF!'}), 400
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
