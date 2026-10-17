@@ -3,5 +3,5 @@ Werkzeug==3.0.1
 gunicorn==21.2.0
 Flask
 gunicorn
-google-generativeai
+google-generativeai>=0.8.0
 pypdf
