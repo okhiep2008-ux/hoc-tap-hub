@@ -88,9 +88,7 @@ def upload_file():
             return jsonify(quiz_data)
 
         except Exception as e:
-            print("LOI XU LY AI CHI TIET:", str(e))  # In lỗi ra màn hình Logs của Render
-            return jsonify({'error': f'Lỗi xử lý AI: {str(e)}'}), 500
-    return jsonify({'error': 'Chỉ chấp nhận định dạng file PDF!'}), 400
-
+            print("🚨 CHI TIẾT LỖI XẢY RA:", str(e))  # In lỗi cụ thể ra màn hình Logs của Render
+            return jsonify({'error': f'Lỗi: {str(e)}'}), 500
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
